@@ -58,11 +58,26 @@ on top of your (roughly neutral) buds — that's how the built-in
 
 ## Supported hardware
 
-Verified on **TOZO Open EarRing** (device mark `B3`). Expected to work with any
-TOZO-protocol buds exposing GATT service `0000b610` with characteristics
-`b611` (write) / `b612` (notify). Not compatible with TOZO models that use
-Airoha (classic BT/SPP) or Juxin (different GATT) protocols. Audio is
-unaffected by all of this — it streams over standard A2DP.
+The tool speaks TOZO's own BLE control protocol: GATT service `0000b610` with
+characteristics `b611` (write) / `b612` (notify), and the 10-band EQ commands
+`0x000B` (read) / `0x100B` (write) carrying a plain 21-byte gain + Q payload.
+Any bud that exposes that service and answers the EQ read with the 21-byte
+gain/Q layout can be controlled.
+
+- **Verified:** TOZO Open EarRing (device mark `B3`).
+- **Likely compatible:** other TOZO models that expose the same GATT service and
+  plain EQ layout — plausibly others in the open-ear line — though only the Open
+  EarRing is confirmed so far.
+- **Not compatible:** models built on a different chip/transport. Airoha-based
+  buds use command `0x100D` with synthesized biquad coefficients instead of the
+  plain gain/Q payload; Juxin-based buds use a different GATT service
+  (`0000faa0`).
+
+There is no fixed public list of which model uses which protocol — it can vary
+by chip and production batch and is resolved per-device by TOZO's backend — so
+the dependable test is at connect time: if the EQ read (`0x000B`) returns the
+21-byte gain/Q layout, the tool can drive it. Audio is unaffected by all of
+this; it streams over standard A2DP the whole time.
 
 Protocol details: [docs/PROTOCOL.md](docs/PROTOCOL.md)
 
