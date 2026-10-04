@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Edit the EQ of TOZO earbuds directly over Bluetooth — no app required. Import AutoEQ profiles, fit them to the hardware's 10-band DSP, and save to the buds.">
+<meta name="theme-color" content="#0c0d10">
+<title>tozo-eq — direct EQ editor for TOZO earbuds</title>
+<link rel="stylesheet" href="style.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230c0d10'/%3E%3Cpath d='M6 20 L11 12 L16 22 L21 8 L26 16' stroke='%23e8a33d' stroke-width='2.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+</head>
+<body>
+
+<div id="unsupported" class="banner" hidden>
+  This browser doesn't support Web Bluetooth. Use Chrome, Edge, Vivaldi, or
+  another Chromium-based browser (desktop or Android). Brave, Safari and
+  Firefox won't work.
+</div>
+
+<header class="topbar">
+  <div class="brand">
+    <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
+      <path d="M4 20 L10 11 L16 22 L22 7 L28 16" fill="none" stroke="currentColor"
+            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <div class="brand-text">
+      <strong>tozo-eq</strong>
+      <span>direct EQ editor for TOZO earbuds</span>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <div class="device-pill" id="device-pill">
+      <span class="dot" id="conn-dot"></span>
+      <span id="conn-label">not connected</span>
+    </div>
+    <button class="btn btn-accent" id="btn-connect">Connect</button>
+    <label class="all-devices">
+      <input type="checkbox" id="chk-all-devices">
+      <span>show all devices</span>
+    </label>
+  </div>
+</header>
+
+<main class="layout">
+  <!-- ============ editor ============ -->
+  <section class="card editor">
+    <div class="card-head">
+      <h2>Response</h2>
+      <div class="fit-stats" id="fit-stats" hidden>
+        <span id="fit-rms"></span> · <span id="fit-max"></span>
+      </div>
+    </div>
+    <canvas id="curve" aria-label="EQ response curve"></canvas>
+    <div class="legend">
+      <span class="legend-item"><i class="swatch swatch-current"></i>current</span>
+      <span class="legend-item" id="legend-target" hidden><i class="swatch swatch-target"></i>AutoEQ target</span>
+    </div>
+
+    <div class="bands" id="bands"><!-- built by app.js --></div>
+
+    <div class="transport">
+      <button class="btn" id="btn-read" disabled>Read from buds</button>
+      <button class="btn" id="btn-preview" disabled>Preview (volatile)</button>
+      <button class="btn btn-accent" id="btn-save" disabled>Save to buds</button>
+      <button class="btn btn-ghost" id="btn-flat">Flat</button>
+    </div>
+    <p class="hint">
+      Preview writes to the live DSP only — power-cycling the case reverts it.
+      Save persists to the buds' flash, replacing the app-stored preset.
+    </p>
+  </section>
+
+  <!-- ============ sidebar ============ -->
+  <aside class="sidebar">
+    <section class="card">
+      <div class="card-head"><h2>Presets</h2></div>
+      <div class="presets" id="presets"><!-- chips by app.js --></div>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><h2>Import AutoEQ</h2></div>
+      <p class="hint" style="margin-top:0">
+        Paste a parametric (<code>Filter 1: ON PK Fc …</code>) or graphic
+        EQ block, or choose a file. The curve is fitted to the buds' 10 fixed
+        bands.
+      </p>
+      <textarea id="autoeq-text" rows="6" spellcheck="false"
+        placeholder="Preamp: -4.7 dB&#10;Filter 1: ON PK Fc 2700 Hz Gain -3.5 dB Q 3.50&#10;…"></textarea>
+      <div class="import-row">
+        <label class="btn btn-ghost file-btn">
+          Choose file<input type="file" id="autoeq-file" accept=".txt,.csv,text/plain" hidden>
+        </label>
+        <button class="btn" id="btn-fit">Fit curve</button>
+      </div>
+      <div class="fit-note" id="fit-note" hidden></div>
+    </section>
+
+    <section class="card log-card">
+      <div class="card-head">
+        <h2>Log</h2>
+        <button class="btn btn-ghost btn-xs" id="btn-clear-log">clear</button>
+      </div>
+      <div class="log" id="log"></div>
+    </section>
+  </aside>
+</main>
+
+<footer>
+  <p>
+    Unofficial community tool — not affiliated with TOZO. Protocol derived
+    through independent research and verified on hardware. Works with
+    TOZO-protocol buds (GATT service <code>b610</code>); verified on Open
+    EarRing. Close the TOZO app before connecting.
+  </p>
+  <p class="coauthor">Co-built by vvr3ddy &amp; <a href="https://qoder.com">Qoder</a> · MIT licensed ·
+    <a href="https://github.com/vvr3ddy/tozo-eq">source</a></p>
+</footer>
+
+<dialog id="connect-guide" class="modal" aria-labelledby="connect-guide-title">
+  <div class="modal-card">
+    <h2 id="connect-guide-title">Before you connect</h2>
+    <p class="modal-intro">
+      The buds only advertise their BLE control channel in short windows. Tick
+      these off first so the device shows up:
+    </p>
+    <ul class="checklist">
+      <li><span class="check-num">1</span> Take the buds <strong>out of the case</strong>, or leave the <strong>lid open</strong>. A closed, charging case hides them.</li>
+      <li><span class="check-num">2</span> <strong>Force-close the TOZO app</strong> on your phone — it holds the control channel and blocks this page.</li>
+      <li><span class="check-num">3</span> Use a <strong>Chromium browser</strong> (Chrome, Edge, Vivaldi, Opera). Brave, Safari and Firefox don't support Web Bluetooth.</li>
+      <li><span class="check-num">4</span> Keep playing audio — it streams over normal Bluetooth (A2DP) the whole time. This is only a side channel.</li>
+    </ul>
+    <label class="modal-remember">
+      <input type="checkbox" id="guide-dont-show">
+      <span>Don't show this again</span>
+    </label>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="guide-cancel">Cancel</button>
+      <button class="btn btn-accent" id="guide-continue">Continue</button>
+    </div>
+  </div>
+</dialog>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>

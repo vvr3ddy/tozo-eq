@@ -1,0 +1,10 @@
+{
+  "name": "tozo-eq",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "description": "EQ editor for TOZO earbuds — Web Bluetooth app + Python CLI",
+  "scripts": {
+    "test": "node test/fit.test.mjs"
+  }
+}
