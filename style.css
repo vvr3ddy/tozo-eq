@@ -1,5 +1,8 @@
 /* tozo-eq — design tokens first, components after.
-   Palette: near-black neutrals + single amber accent. No gradients, no glow. */
+   Palette: near-black neutrals + single amber accent.
+   Surfaces: soft neumorphic elevation on cards/controls, tinted glass on the
+   topbar + modal, recessed wells for inputs, and a faint ambient amber wash
+   behind everything so the glass has something to refract. */
 
 :root {
   --bg:        #0c0d10;
@@ -24,6 +27,14 @@
   --r-card: 12px;
   --r-ctl:  8px;
   --sp: 8px;
+
+  /* elevation + glass tokens (bold pass — dial back to taste) */
+  --shadow-raise:   12px 14px 34px rgba(0, 0, 0, 0.62), -9px -9px 26px rgba(255, 255, 255, 0.04);
+  --shadow-inset-hi: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  --shadow-well:    inset 0 3px 9px rgba(0, 0, 0, 0.72), inset 0 1px 2px rgba(0, 0, 0, 0.5);
+  --glass-bg:       color-mix(in srgb, #1b2027 58%, transparent);
+  --glass-border:   1px solid rgba(255, 255, 255, 0.14);
+  --glass-blur:     blur(22px) saturate(165%);
 }
 
 * { box-sizing: border-box; }
@@ -38,6 +49,20 @@ body {
   font-size: 14px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+
+/* faint ambient wash so the glass surfaces have something to refract */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(1200px 700px at 10% -10%, rgba(232, 163, 61, 0.16), transparent 62%),
+    radial-gradient(1000px 600px at 100% 0%, rgba(122, 162, 201, 0.11), transparent 58%),
+    radial-gradient(800px 800px at 50% 118%, rgba(232, 163, 61, 0.08), transparent 60%);
 }
 
 code { font-family: var(--mono); font-size: 0.92em; color: var(--text-dim); }
@@ -53,7 +78,7 @@ code { font-family: var(--mono); font-size: 0.92em; color: var(--text-dim); }
   text-align: center;
 }
 
-/* ---------- top bar ---------- */
+/* ---------- top bar (tinted glass) ---------- */
 
 .topbar {
   position: sticky; top: 0; z-index: 10;
@@ -61,9 +86,11 @@ code { font-family: var(--mono); font-size: 0.92em; color: var(--text-dim); }
   gap: calc(var(--sp) * 2);
   padding: 0 24px;
   height: 56px;
-  background: color-mix(in srgb, var(--bg) 85%, transparent);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--border);
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
 }
 
 .brand { display: flex; align-items: center; gap: 10px; }
@@ -83,6 +110,7 @@ code { font-family: var(--mono); font-size: 0.92em; color: var(--text-dim); }
   font-size: 12.5px; color: var(--text-dim);
   font-family: var(--mono);
   max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  box-shadow: var(--shadow-inset-hi);
 }
 
 .dot {
@@ -99,7 +127,7 @@ code { font-family: var(--mono); font-size: 0.92em; color: var(--text-dim); }
 }
 .all-devices input { accent-color: var(--accent); }
 
-/* ---------- buttons ---------- */
+/* ---------- buttons (soft neumorphic) ---------- */
 
 .btn {
   font: inherit; font-size: 13px; font-weight: 500;
@@ -109,21 +137,33 @@ code { font-family: var(--mono); font-size: 0.92em; color: var(--text-dim); }
   border-radius: var(--r-ctl);
   padding: 7px 14px;
   cursor: pointer;
-  transition: background 120ms, border-color 120ms, opacity 120ms;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35), var(--shadow-inset-hi);
+  transition: background 120ms, border-color 120ms, box-shadow 120ms, opacity 120ms;
 }
-.btn:hover:not(:disabled) { background: #21252c; border-color: #3a404a; }
-.btn:active:not(:disabled) { background: #1b1f25; }
-.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn:hover:not(:disabled) {
+  background: #21252c; border-color: #3a404a;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45), var(--shadow-inset-hi);
+}
+.btn:active:not(:disabled) { background: #1b1f25; box-shadow: var(--shadow-well); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
 .btn:focus-visible { outline: 2px solid var(--accent-dim); outline-offset: 1px; }
 
 .btn-accent {
   background: var(--accent); border-color: var(--accent);
   color: #1a1206; font-weight: 600;
+  box-shadow: 0 3px 10px rgba(232, 163, 61, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.25);
 }
-.btn-accent:hover:not(:disabled) { background: #f0ae4d; border-color: #f0ae4d; }
+.btn-accent:hover:not(:disabled) {
+  background: #f0ae4d; border-color: #f0ae4d;
+  box-shadow: 0 5px 16px rgba(232, 163, 61, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+.btn-accent:active:not(:disabled) { box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.28); }
 
-.btn-ghost { background: transparent; border-color: transparent; color: var(--text-dim); }
-.btn-ghost:hover:not(:disabled) { background: var(--panel-2); color: var(--text); }
+.btn-ghost { background: transparent; border-color: transparent; color: var(--text-dim); box-shadow: none; }
+.btn-ghost:hover:not(:disabled) {
+  background: var(--panel-2); color: var(--text);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3), var(--shadow-inset-hi);
+}
 
 .btn-xs { font-size: 11.5px; padding: 3px 8px; }
 
@@ -144,10 +184,13 @@ code { font-family: var(--mono); font-size: 0.92em; color: var(--text-dim); }
 .sidebar { display: flex; flex-direction: column; gap: 20px; }
 
 .card {
-  background: var(--panel);
-  border: 1px solid var(--border);
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: var(--glass-border);
   border-radius: var(--r-card);
   padding: 18px 20px 20px;
+  box-shadow: var(--shadow-raise), var(--shadow-inset-hi);
 }
 
 .card-head {
@@ -190,6 +233,7 @@ code { font-family: var(--mono); font-size: 0.92em; color: var(--text-dim); }
   background: var(--panel-2);
   border: 1px solid var(--border);
   border-radius: var(--r-card);
+  box-shadow: var(--shadow-well);
 }
 
 .band { display: flex; flex-direction: column; align-items: center; gap: 8px; }
@@ -219,7 +263,7 @@ input[type="range"].band-slider::-webkit-slider-thumb {
   width: 16px; height: 16px; border-radius: 50%;
   background: var(--text);
   border: 3px solid var(--panel-2);
-  box-shadow: 0 0 0 1px var(--border-2);
+  box-shadow: 0 0 0 1px var(--border-2), 0 2px 5px rgba(0, 0, 0, 0.5);
   margin-left: -7px;
   transition: background 100ms;
 }
@@ -237,11 +281,12 @@ input[type="range"].band-slider:focus-visible::-webkit-slider-thumb {
   width: 46px;
   font-family: var(--mono); font-size: 11px;
   color: var(--text-dim);
-  background: var(--panel);
+  background: var(--bg);
   border: 1px solid var(--border-2);
   border-radius: 6px;
   padding: 2px 4px;
   text-align: center;
+  box-shadow: var(--shadow-well);
 }
 .band-q:focus { outline: 1px solid var(--accent-dim); color: var(--text); }
 .band-q-label { font-size: 9.5px; color: var(--text-faint); letter-spacing: 0.06em; }
@@ -265,12 +310,18 @@ input[type="range"].band-slider:focus-visible::-webkit-slider-thumb {
   border-radius: 999px;
   padding: 5px 12px;
   cursor: pointer;
-  transition: color 100ms, border-color 100ms;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3), var(--shadow-inset-hi);
+  transition: color 100ms, border-color 100ms, box-shadow 100ms;
 }
-.chip:hover { color: var(--text); border-color: #3a404a; }
+.chip:hover {
+  color: var(--text); border-color: #3a404a;
+  box-shadow: 0 3px 9px rgba(0, 0, 0, 0.4), var(--shadow-inset-hi);
+}
+.chip:active { box-shadow: var(--shadow-well); }
 .chip.active {
   color: var(--accent); border-color: var(--accent-dim);
   background: #1d1710;
+  box-shadow: 0 0 0 1px rgba(232, 163, 61, 0.15), 0 3px 10px rgba(0, 0, 0, 0.4);
 }
 
 /* ---------- import ---------- */
@@ -285,6 +336,7 @@ textarea {
   padding: 10px 12px;
   resize: vertical;
   margin: 12px 0;
+  box-shadow: var(--shadow-well);
 }
 textarea::placeholder { color: var(--text-faint); }
 textarea:focus { outline: 1px solid var(--accent-dim); }
@@ -300,6 +352,7 @@ textarea:focus { outline: 1px solid var(--accent-dim); }
   background: var(--bg);
   border: 1px solid var(--border);
   color: var(--text-dim);
+  box-shadow: var(--shadow-well);
 }
 .fit-note.err { color: var(--err); border-color: #4a2626; }
 
@@ -315,6 +368,7 @@ textarea:focus { outline: 1px solid var(--accent-dim); }
   border-radius: var(--r-ctl);
   padding: 8px 10px;
   white-space: pre-wrap; word-break: break-all;
+  box-shadow: var(--shadow-well);
 }
 .log:empty::before { content: "—"; color: var(--text-faint); }
 .log .t-dim  { color: var(--text-faint); }
@@ -337,7 +391,7 @@ footer a { color: var(--text-dim); text-decoration: none; border-bottom: 1px sol
 footer a:hover { color: var(--text); }
 .coauthor { letter-spacing: 0.01em; }
 
-/* ---------- connect-guidance modal ---------- */
+/* ---------- connect-guidance modal (tinted glass) ---------- */
 
 .modal {
   border: none;
@@ -347,21 +401,24 @@ footer a:hover { color: var(--text); }
   color: var(--text);
 }
 .modal::backdrop {
-  background: rgba(4, 5, 7, 0.66);
-  backdrop-filter: blur(3px);
+  background: rgba(4, 5, 7, 0.55);
+  backdrop-filter: blur(4px) saturate(120%);
+  -webkit-backdrop-filter: blur(4px) saturate(120%);
 }
-.modal[open] { animation: modal-in 140ms ease-out; }
+.modal[open] { animation: modal-in 160ms ease-out; }
 @keyframes modal-in {
-  from { opacity: 0; transform: translateY(8px) scale(0.985); }
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
   to   { opacity: 1; transform: none; }
 }
 
 .modal-card {
-  background: var(--panel);
-  border: 1px solid var(--border-2);
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: var(--glass-border);
   border-radius: var(--r-card);
   padding: 22px 24px 18px;
-  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6), var(--shadow-inset-hi);
 }
 
 .modal-card h2 {
@@ -393,6 +450,7 @@ footer a:hover { color: var(--text); }
   color: var(--accent);
   font-family: var(--mono); font-size: 11px; font-weight: 600;
   margin-top: 1px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 .modal-remember {
