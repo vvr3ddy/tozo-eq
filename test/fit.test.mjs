@@ -1,7 +1,7 @@
 /* Parity tests: JS fitter vs. reference outputs from cli/tozo_eq.py */
 import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
-import { parseAutoeq, fitEq, FIT_FREQS } from '../eqfit.js';
+import { parseAutoeq, fitEq, invertCurve, FIT_FREQS } from '../eqfit.js';
 import { buildFrame, eqPayload, hex, GAIN_LIMIT, Q_MIN, Q_MAX, PROFILES } from '../protocol.js';
 
 // --- golden frame (matches CLI byte-for-byte) ------------------------------
@@ -45,6 +45,22 @@ assert.ok(Math.abs(fit.max - 4.41) < 0.05, `max ${fit.max}`);
 assert.ok(fit.gains.every(g => Math.abs(g) <= GAIN_LIMIT + 1e-9),
   `fit exceeded ±${GAIN_LIMIT} dB: ${fit.gains}`);
 console.log(`ok  parametric fit matches python (rms ${fit.rms.toFixed(2)}, max ${fit.max.toFixed(2)})`);
+
+// --- emulate mode: inverting the target negates the fit exactly --------------
+// A peaking filter's dB response is odd in gain, and the fitter's midpoint
+// re-centring is odd under negation, so fitEq(invertCurve(t)) must be the exact
+// gain-negation of fitEq(t) with identical Qs and mirrored error.
+assert.deepStrictEqual(
+  Array.from(invertCurve(Float64Array.of(1.5, -2, 0, 3)), v => v + 0),
+  [-1.5, 2, 0, -3]);
+const emu = fitEq(invertCurve(target));
+assert.deepStrictEqual(emu.gains.map(g => g.toFixed(1)),
+  fit.gains.map(g => (-g).toFixed(1)));
+assert.deepStrictEqual(emu.qs.map(q => q.toFixed(1)),
+  fit.qs.map(q => q.toFixed(1)));
+assert.ok(Math.abs(emu.rms - fit.rms) < 1e-9 && Math.abs(emu.max - fit.max) < 1e-9,
+  'emulate fit error should mirror the correct fit');
+console.log(`ok  emulate fit is the exact negation (rms ${emu.rms.toFixed(2)})`);
 
 // --- gain-ceiling regression: a bass-heavy correction that used to overflow --
 // This is the profile that made the buds reply "rejected (status 1)": a +9.5 dB

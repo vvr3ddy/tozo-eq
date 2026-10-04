@@ -126,6 +126,14 @@ export function parseAutoeq(text) {
                   'or graphic EQ lines like "1000 Hz -3.5 dB")');
 }
 
+/* Negate a target curve. A peaking filter's dB response is odd in gain, so
+ * fitEq(invertCurve(t)) is the exact gain-negation of fitEq(t) with identical
+ * Qs. This is what "emulate" mode uses: inverting another headphone's
+ * correction puts that headphone's coloration on your (roughly neutral) buds. */
+export function invertCurve(target) {
+  return Float64Array.from(target, v => -v);
+}
+
 /* Least-squares coordinate-descent fit: 10 fixed-frequency peaking filters,
  * gain and Q on the hardware's 0.1-step grid. */
 export function fitEq(target, passes = 8) {

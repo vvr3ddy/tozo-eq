@@ -4,7 +4,7 @@ import {
   CMD_GET_FW, CMD_GET_EQ, CMD_SET_EQ, PROFILES,
   buildFrame, parseResponse, eqPayload, decodeEqPayload, hex,
 } from './protocol.js';
-import { parseAutoeq, fitEq, FIT_FREQS, bandResponse } from './eqfit.js';
+import { parseAutoeq, fitEq, invertCurve, FIT_FREQS, bandResponse } from './eqfit.js';
 
 /* ------------------------------- state --------------------------------- */
 
@@ -16,6 +16,7 @@ const state = {
   gains: PROFILES['Flat'].gains.slice(),
   qs: DEFAULT_QS.slice(),
   target: null,           // Float64Array | null — imported AutoEQ curve
+  fitMode: 'correct',     // 'correct' | 'emulate' — how an import is applied
   dirty: true,
 };
 
@@ -30,6 +31,8 @@ const els = {
   presets: $('presets'),
   autoeqText: $('autoeq-text'), autoeqFile: $('autoeq-file'),
   btnFit: $('btn-fit'), fitNote: $('fit-note'),
+  tabCorrect: $('tab-correct'), tabEmulate: $('tab-emulate'), segHelp: $('seg-help'),
+  bandsWrap: $('bands-wrap'), swipeHint: $('swipe-hint'),
   fitStats: $('fit-stats'), fitRms: $('fit-rms'), fitMax: $('fit-max'),
   legendTarget: $('legend-target'),
 };
@@ -401,6 +404,39 @@ function showFitNote(text, isErr = false) {
   els.fitNote.classList.toggle('err', isErr);
 }
 
+const FIT_MODES = {
+  correct: {
+    label: 'Fit correction',
+    help: 'Flatten <strong>your</strong> buds toward neutral — paste their ' +
+          'AutoEQ file (parametric <code>Filter N: …</code> or graphic), then fit.',
+    note: 'Correction fitted — moves your buds toward the file\u2019s neutral target. ',
+  },
+  emulate: {
+    label: 'Fit emulation',
+    help: 'Make your buds <strong>sound like</strong> another headphone — paste ' +
+          '<em>its</em> AutoEQ file; the curve is inverted before fitting.',
+    note: 'Emulation fitted — puts the source tuning\u2019s coloration on your buds ' +
+         '(inverse of the file). ',
+  },
+};
+
+function fitLabel() { return FIT_MODES[state.fitMode].label; }
+
+function setFitMode(mode) {
+  state.fitMode = mode;
+  const m = FIT_MODES[mode];
+  const emulate = mode === 'emulate';
+  els.tabCorrect.classList.toggle('active', !emulate);
+  els.tabEmulate.classList.toggle('active', emulate);
+  els.tabCorrect.setAttribute('aria-selected', String(!emulate));
+  els.tabEmulate.setAttribute('aria-selected', String(emulate));
+  els.segHelp.innerHTML = m.help;
+  els.btnFit.textContent = m.label;
+}
+
+els.tabCorrect.addEventListener('click', () => setFitMode('correct'));
+els.tabEmulate.addEventListener('click', () => setFitMode('emulate'));
+
 els.autoeqFile.addEventListener('change', async () => {
   const f = els.autoeqFile.files?.[0];
   if (!f) return;
@@ -412,11 +448,13 @@ els.autoeqFile.addEventListener('change', async () => {
 els.btnFit.addEventListener('click', async () => {
   const text = els.autoeqText.value.trim();
   if (!text) { showFitNote('paste an EQ block or choose a file first', true); return; }
+  const emulate = state.fitMode === 'emulate';
   els.btnFit.disabled = true;
   els.btnFit.textContent = 'Fitting…';
   await new Promise(r => setTimeout(r, 30));   // let the UI repaint
   try {
-    const target = parseAutoeq(text);
+    const raw = parseAutoeq(text);
+    const target = emulate ? invertCurve(raw) : raw;
     const fit = fitEq(target);
     state.target = target;
     els.legendTarget.hidden = false;
@@ -425,25 +463,86 @@ els.btnFit.addEventListener('click', async () => {
     els.fitRms.textContent = `fit ${fit.rms.toFixed(2)} dB rms`;
     els.fitMax.textContent = `${fit.max.toFixed(2)} dB max`;
     const capped = fit.gains.some(g => Math.abs(g) >= GAIN_LIMIT - 0.05);
-    showFitNote(`fitted — ${fit.rms.toFixed(2)} dB rms / ${fit.max.toFixed(2)} dB max error. ` +
+    showFitNote(FIT_MODES[state.fitMode].note +
+      `${fit.rms.toFixed(2)} dB rms / ${fit.max.toFixed(2)} dB max error. ` +
       (capped
-        ? `This curve wanted more than the buds' ±${GAIN_LIMIT.toFixed(0)} dB range, so the ` +
-          'loudest bands were capped — the shape is preserved, the extremes are tamer. '
+        ? `The curve wanted more than the buds' ±${GAIN_LIMIT.toFixed(0)} dB range, so the ` +
+          'loudest bands were capped — shape kept, extremes tamed. '
         : '') +
       'Preview first, then save if you like it.');
-    log(`autoeq fit: ${fit.gains.map(fmtDb).join(' ')}`, 't-ok');
+    log(`autoeq fit (${state.fitMode}): ${fit.gains.map(fmtDb).join(' ')}`, 't-ok');
   } catch (e) {
     showFitNote(e.message, true);
     log(`fit failed: ${e.message}`, 't-err');
   } finally {
     els.btnFit.disabled = false;
-    els.btnFit.textContent = 'Fit curve';
+    els.btnFit.textContent = fitLabel();
   }
+});
+
+/* ------------------- swipeable band strip (small screens) ------------------ */
+/* The 10 bands become a horizontal scroller on phones. Two affordances make
+ * that discoverable: directional edge fades that reflect real overflow, and a
+ * one-time "swipe" hint that dismisses on first scroll and is then remembered. */
+
+const HINT_KEY = 'tozo-eq.swipeHintSeen';
+let hintTimer = null;
+
+function bandsOverflows() {
+  return els.bands.scrollWidth - els.bands.clientWidth > 1;
+}
+
+function updateBandsAffordance() {
+  const el = els.bands;
+  const overflow = el.scrollWidth - el.clientWidth;
+  const atStart = el.scrollLeft <= 1;
+  const atEnd = el.scrollLeft >= overflow - 1;
+  els.bandsWrap.classList.toggle('can-scroll-left', overflow > 1 && !atStart);
+  els.bandsWrap.classList.toggle('can-scroll-right', overflow > 1 && !atEnd);
+}
+
+function dismissSwipeHint() {
+  if (!els.swipeHint || els.swipeHint.hidden) return;
+  clearTimeout(hintTimer);
+  els.swipeHint.classList.add('gone');
+  localStorage.setItem(HINT_KEY, '1');
+  setTimeout(() => { if (els.swipeHint) els.swipeHint.hidden = true; }, 320);
+}
+
+function maybeShowSwipeHint() {
+  if (!els.swipeHint) return;
+  const seen = localStorage.getItem(HINT_KEY) === '1';
+  const small = matchMedia('(pointer: coarse)').matches || innerWidth <= 700;
+  if (!seen && small && bandsOverflows()) {
+    els.swipeHint.hidden = false;
+    els.swipeHint.classList.remove('gone');
+    clearTimeout(hintTimer);
+    hintTimer = setTimeout(dismissSwipeHint, 6000);   // don't linger forever
+  } else {
+    els.swipeHint.hidden = true;
+  }
+}
+
+els.bands.addEventListener('scroll', () => {
+  updateBandsAffordance();
+  dismissSwipeHint();
+}, { passive: true });
+
+let resizeRaf = null;
+addEventListener('resize', () => {
+  if (resizeRaf) cancelAnimationFrame(resizeRaf);
+  resizeRaf = requestAnimationFrame(() => {
+    resizeRaf = null;
+    updateBandsAffordance();
+    maybeShowSwipeHint();
+  });
 });
 
 /* -------------------------------- init ------------------------------------ */
 
 buildBands();
 syncBandUI();
+setFitMode('correct');
 draw();
+requestAnimationFrame(() => { updateBandsAffordance(); maybeShowSwipeHint(); });
 log('ready — connect your buds (close the TOZO app first)');

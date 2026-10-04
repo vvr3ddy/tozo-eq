@@ -32,6 +32,7 @@ python cli/tozo_eq.py --read-only                     # dump current EQ
 python cli/tozo_eq.py --profile bass_boost --no-save  # built-in profiles
 python cli/tozo_eq.py --autoeq my_eq.txt --no-save    # fit an AutoEQ file
 python cli/tozo_eq.py --autoeq my_eq.txt              # …and persist it
+python cli/tozo_eq.py --autoeq airpodmax_eq.txt --emulate # sound like them (see below)
 python cli/tozo_eq.py --gains 3,5,6,4,1,0,-1,-1,-2,-3 # manual, 10 bands
 ```
 
@@ -54,10 +55,23 @@ frequencies and Q values, so both front-ends:
 Broad tonal curves fit within ~0.5–1 dB rms; narrow high-Q notches get
 approximated (fit error is always displayed).
 
-**Emulating another headphone?** AutoEQ files are *corrections* toward neutral.
-Invert every `Gain` sign of the file for headphone X and you get X's coloration
-on top of your (roughly neutral) buds — that's how the built-in
-"AirPods Max-ish" and "Crusher Style" presets were made.
+### Correct vs Emulate
+
+An AutoEQ file is a *correction toward neutral* — it says "undo this headphone's
+coloration." What you do with it depends on whose file it is:
+
+- **Correct** — load **your own** buds' AutoEQ file. The fit cancels their
+  coloration, so the buds land closer to neutral. This is the standard reading
+  and the web app's default tab.
+- **Emulate** — load **another** headphone's AutoEQ file and invert it. Undoing
+  that headphone's correction stamps *its* tuning onto your (roughly neutral)
+  buds, so they start to sound like that headphone. This is how the built-in
+  "AirPods Max-ish" and "Crusher Style" presets were made.
+
+The web app exposes these as **Correct / Emulate** tabs above the import box —
+same file, opposite sign. The CLI mirrors it with `--emulate`. (Peaking-filter
+response is odd in gain, so an emulation fit is the exact gain-mirror of the
+correction fit, with identical Q values.)
 
 ## Supported hardware
 

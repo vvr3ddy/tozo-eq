@@ -24,6 +24,7 @@ Usage:
      python3 tozo_eq.py --scan     # just scan, don't write anything
      python3 tozo_eq.py --profile bass_boost
      python3 tozo_eq.py --autoeq ~/Downloads/TOZO_Open_Earring_parametric_eq.txt
+     python3 tozo_eq.py --autoeq airpodmax_eq.txt --emulate  # sound like them
 """
 
 import argparse
@@ -235,12 +236,19 @@ async def main():
                     help=f"one of: {', '.join(PROFILES)}")
     ap.add_argument("--autoeq", metavar="FILE",
                     help="AutoEQ parametric_eq.txt or graphic_eq.txt to fit")
+    ap.add_argument("--emulate", action="store_true",
+                    help="with --autoeq: invert the curve so your buds take on "
+                         "the source headphone's tuning instead of correcting "
+                         "toward neutral")
     ap.add_argument("--gains", help="10 comma-separated dB values, e.g. 3,2,0,...")
     ap.add_argument("--no-save", action="store_true",
                     help="don't persist to earbud flash (volatile)")
     ap.add_argument("--read-only", action="store_true",
                     help="connect and read current EQ, write nothing")
     args = ap.parse_args()
+
+    if args.emulate and not args.autoeq:
+        print("note: --emulate only applies to --autoeq; ignoring it here.")
 
     address = args.address
     if not address:
@@ -350,10 +358,14 @@ async def main():
             with open(args.autoeq, encoding="utf-8", errors="replace") as fh:
                 text = fh.read()
             target = parse_autoeq(text)
-            print("\nFitting AutoEQ curve to the 10 fixed bands "
+            if args.emulate:
+                target = -target
+                print("\nEmulate mode: inverting the curve so your buds take on "
+                      "the source headphone's tuning.")
+            print("Fitting AutoEQ curve to the 10 fixed bands "
                   "(this takes a few seconds)...")
             gains_db, qs, rms, peak = fit_eq(target)
-            label = f"autoeq:{args.autoeq}"
+            label = f"autoeq{'(emulate)' if args.emulate else ''}:{args.autoeq}"
             print(f"  fit error: {rms:.2f} dB rms, {peak:.2f} dB max "
                   "(broad tonal EQ fits well; narrow high-Q peaks will be "
                   "approximated)")

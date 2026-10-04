@@ -6,7 +6,7 @@
 <meta name="description" content="Edit the EQ of TOZO earbuds directly over Bluetooth — no app required. Import AutoEQ profiles, fit them to the hardware's 10-band DSP, and save to the buds.">
 <meta name="theme-color" content="#0c0d10">
 <title>tozo-eq — direct EQ editor for TOZO earbuds</title>
-<link rel="stylesheet" href="style.css?v=3">
+<link rel="stylesheet" href="style.css?v=4">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230c0d10'/%3E%3Cpath d='M6 20 L11 12 L16 22 L21 8 L26 16' stroke='%23e8a33d' stroke-width='2.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 </head>
 <body>
@@ -56,7 +56,10 @@
       <span class="legend-item" id="legend-target" hidden><i class="swatch swatch-target"></i>AutoEQ target</span>
     </div>
 
-    <div class="bands" id="bands"><!-- built by app.js --></div>
+    <div class="bands-wrap" id="bands-wrap">
+      <div class="bands" id="bands"><!-- built by app.js --></div>
+      <div class="swipe-hint" id="swipe-hint" hidden>Swipe for more bands →</div>
+    </div>
 
     <div class="transport">
       <button class="btn" id="btn-read" disabled>Read from buds</button>
@@ -79,10 +82,13 @@
 
     <section class="card">
       <div class="card-head"><h2>Import AutoEQ</h2></div>
-      <p class="hint" style="margin-top:0">
-        Paste a parametric (<code>Filter 1: ON PK Fc …</code>) or graphic
-        EQ block, or choose a file. The curve is fitted to the buds' 10 fixed
-        bands.
+      <div class="seg" role="tablist" aria-label="Import mode">
+        <button role="tab" id="tab-correct" class="seg-btn active" aria-selected="true">Correct</button>
+        <button role="tab" id="tab-emulate" class="seg-btn" aria-selected="false">Emulate</button>
+      </div>
+      <p class="hint seg-help" id="seg-help">
+        Flatten <strong>your</strong> buds toward neutral — paste their AutoEQ
+        file (parametric <code>Filter N: …</code> or graphic), then fit.
       </p>
       <textarea id="autoeq-text" rows="6" spellcheck="false"
         placeholder="Preamp: -4.7 dB&#10;Filter 1: ON PK Fc 2700 Hz Gain -3.5 dB Q 3.50&#10;…"></textarea>
@@ -90,7 +96,7 @@
         <label class="btn btn-ghost file-btn">
           Choose file<input type="file" id="autoeq-file" accept=".txt,.csv,text/plain" hidden>
         </label>
-        <button class="btn" id="btn-fit">Fit curve</button>
+        <button class="btn" id="btn-fit">Fit correction</button>
       </div>
       <div class="fit-note" id="fit-note" hidden></div>
     </section>
@@ -140,6 +146,6 @@
   </div>
 </dialog>
 
-<script type="module" src="app.js?v=2"></script>
+<script type="module" src="app.js?v=3"></script>
 </body>
 </html>
