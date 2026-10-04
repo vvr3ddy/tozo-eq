@@ -4,7 +4,12 @@
 export const BAND_FREQS = [20, 50, 100, 200, 400, 800, 1600, 3200, 6400, 12800];
 export const DEFAULT_QS  = [0.5, 0.6, 0.7, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0];
 
-export const GAIN_LIMIT = 12.7;   // int8 dB*10
+/* Conservative gain ceiling in dB. The wire format is int8 (dB*10, so ±12.7 is
+ * technically encodable), but the buds' DSP rejects swings that large — a fit
+ * that pushed a band to +12.6 dB came back "device rejected (status 1)". Every
+ * built-in tuning stays within about ±5 dB, so we cap the fitter and the sliders
+ * here to keep writes inside the range the hardware actually accepts. */
+export const GAIN_LIMIT = 6.0;
 export const Q_MIN = 0.5;
 export const Q_MAX = 2.0;
 
@@ -23,8 +28,11 @@ export const PROFILES = {
   'Treble':          { gains: [-1, -1, 0, 0, 0, 1, 2, 4, 5, 6], qs: DEFAULT_QS },
   'V-Shape':         { gains: [5, 4, 2, 0, -2, -2, 0, 2, 4, 5], qs: DEFAULT_QS },
   'Crusher Style':   { gains: [3, 5, 6, 4, 1, 0, -1, -1, -2, -3], qs: DEFAULT_QS },
-  'AirPods Max-ish': { gains: [3.2, 2.4, 1.3, -0.8, 0.6, 2.6, 0.6, -2.6, -8.6, 7.7],
+  'AirPods Max-ish': { gains: [3.2, 2.4, 1.3, -0.8, 0.6, 2.6, 0.6, -2.6, -6.0, 6.0],
                        qs: [0.5, 0.6, 0.8, 0.5, 0.5, 0.5, 0.7, 0.5, 1.0, 0.5] },
+  'Harman-Plus Musical Reference': {
+                       gains: [0.9, 5.2, -1.2, -4, -0.2, -1.6, 0.3, -1.2, -2.7, 0.7],
+                       qs: [0.5, 0.7, 0.5, 1.0, 0.5, 1.1, 0.5, 2.0, 2.0, 2.0] },
 };
 
 export function buildFrame(cmd, payload = new Uint8Array()) {

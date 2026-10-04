@@ -319,15 +319,33 @@ async function readEq(announce = true) {
 }
 
 async function writeEq(save) {
-  const payload = eqPayload(state.gains, state.qs, save);
-  const r = await request(CMD_SET_EQ, CMD_SET_EQ, 5000, payload);
-  if (!r) { log('no ack — write may have failed', 't-err'); return false; }
-  const status = r.payload[0];
-  if (status === 0) {
-    log(save ? 'saved to buds' : 'applied (volatile)', 't-ok');
-    return true;
+  // GAIN_LIMIT keeps fits in range for the buds we've verified, but an unknown
+  // model could have a tighter ceiling. On rejection, back the whole curve off
+  // and retry rather than dead-ending — better a slightly quieter EQ than none.
+  let scale = 1;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const gains = scale === 1
+      ? state.gains
+      : state.gains.map(g => Math.round(g * scale * 10) / 10);
+    const payload = eqPayload(gains, state.qs, save);
+    const r = await request(CMD_SET_EQ, CMD_SET_EQ, 5000, payload);
+    if (!r) { log('no ack — write may have failed', 't-err'); return false; }
+    const status = r.payload[0];
+    if (status === 0) {
+      if (scale !== 1) {
+        setEq(gains, state.qs);
+        log(`device capped gain — applied at ${Math.round(scale * 100)}% to stay in range`, 't-ok');
+      }
+      log(save ? 'saved to buds' : 'applied (volatile)', 't-ok');
+      return true;
+    }
+    if (attempt < 2) {
+      scale *= 0.7;
+      log(`device rejected write (status ${status}) — retrying at ${Math.round(scale * 100)}% gain`, 't-err');
+    } else {
+      log(`device rejected write (status ${status}) even at reduced gain`, 't-err');
+    }
   }
-  log(`device rejected write (status ${status})`, 't-err');
   return false;
 }
 
@@ -406,7 +424,12 @@ els.btnFit.addEventListener('click', async () => {
     els.fitStats.hidden = false;
     els.fitRms.textContent = `fit ${fit.rms.toFixed(2)} dB rms`;
     els.fitMax.textContent = `${fit.max.toFixed(2)} dB max`;
+    const capped = fit.gains.some(g => Math.abs(g) >= GAIN_LIMIT - 0.05);
     showFitNote(`fitted — ${fit.rms.toFixed(2)} dB rms / ${fit.max.toFixed(2)} dB max error. ` +
+      (capped
+        ? `This curve wanted more than the buds' ±${GAIN_LIMIT.toFixed(0)} dB range, so the ` +
+          'loudest bands were capped — the shape is preserved, the extremes are tamer. '
+        : '') +
       'Preview first, then save if you like it.');
     log(`autoeq fit: ${fit.gains.map(fmtDb).join(' ')}`, 't-ok');
   } catch (e) {

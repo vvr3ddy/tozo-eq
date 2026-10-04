@@ -38,9 +38,12 @@ python cli/tozo_eq.py --gains 3,5,6,4,1,0,-1,-1,-2,-3 # manual, 10 bands
 ## How the AutoEQ fitting works
 
 The buds' DSP has **10 fixed-frequency peaking bands**
-(20/50/100/200/400/800/1600/3200/6400/12800 Hz), ±12.7 dB gain (0.1 dB steps),
-Q 0.5–2.0, and no preamp. AutoEQ files specify arbitrary frequencies and Q
-values, so both front-ends:
+(20/50/100/200/400/800/1600/3200/6400/12800 Hz), 0.1 dB gain steps, Q 0.5–2.0,
+and no preamp. The gain byte is int8, so ±12.7 dB is technically encodable — but
+the DSP rejects swings that large (a fit that pushed a band to +12.6 dB came back
+"device rejected"), and every built-in tuning stays within ~±5 dB, so both
+front-ends cap the fit at a safe **±6 dB**. AutoEQ files specify arbitrary
+frequencies and Q values, so both front-ends:
 
 1. Parse the parametric (`Filter N: ON PK/LSC/HSC …`) or graphic EQ format.
 2. Evaluate the target magnitude curve (RBJ biquads, 48 kHz) on a log grid.

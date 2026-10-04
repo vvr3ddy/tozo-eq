@@ -75,7 +75,7 @@ checksum = sum(payload) & 0xFF        (payload only — not cmd/len)
 Payload = 21 bytes:
 
 ```
-[0..9]   gains, int8, dB × 10        (±12.7 dB range)
+[0..9]   gains, int8, dB × 10        (±12.7 dB encodable; DSP accepts far less)
 [10..19] Q values, uint8, Q × 10     (app only sends 0.5–2.0)
 [20]     save flag: 1 = persist to flash, 0 = live DSP only
 ```
@@ -84,6 +84,10 @@ Bands are fixed at 20, 50, 100, 200, 400, 800, 1600, 3200, 6400, 12800 Hz.
 Factory Q defaults: 0.5, 0.6, 0.7, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0.
 
 `GET 0x000B` returns the same 20-byte gains+Qs layout (no save byte).
+
+The gain byte is int8, so ±12.7 dB is *encodable* — but the DSP rejects swings
+that large (see the gain-ceiling quirk in §6). This tool caps fits at a safe
+±6 dB.
 
 Example — set gains `[+6,+5,+4,+2,0,0,0,0,+1,+2]`, default Qs, save:
 
@@ -100,6 +104,13 @@ Example — set gains `[+6,+5,+4,+2,0,0,0,0,+1,+2]`, default Qs, save:
   replaces the stored preset.
 - There is no handshake or authentication step before issuing commands —
   connect, subscribe to `b612`, and start sending frames.
+- **Gain ceiling well below int8.** A SET carrying a +12.6 dB band was refused
+  with a non-zero status byte (`10 0b 01 01 01`); the same curve scaled into
+  ~±6 dB is accepted. Values up to about +7 dB have been seen accepted and stock
+  presets stay within ~±5 dB, so the real ceiling is firmware-side and
+  unpublished — cap writes at ±6 dB to be safe. On a rejection, back the whole
+  curve off (e.g. ×0.7) and retry rather than failing outright, since a stricter
+  unit may sit lower still.
 
 ## 7. Device families
 

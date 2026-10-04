@@ -74,7 +74,12 @@ def encode_qs(qs):
 
 FIT_FREQS = np.geomspace(20, 20000, 160)   # target curve sample points
 FIT_FS = 48000.0
-GAIN_CANDS = np.arange(-127, 128) / 10.0    # hardware: int8 = dB*10
+# The wire format is int8 (dB*10, ±12.7 encodable), but the buds' DSP rejects
+# swings that large — a fit that pushed a band to +12.6 dB came back "rejected".
+# Built-in tunings stay within ~±5 dB, so cap the fitter to a safe ceiling.
+GAIN_LIMIT = 6.0
+GAIN_CANDS = np.arange(-int(round(GAIN_LIMIT * 10)),
+                       int(round(GAIN_LIMIT * 10)) + 1) / 10.0
 Q_CANDS = np.arange(5, 21) / 10.0           # keep to app's 0.5..2.0 range
 
 _FILTER_RE = re.compile(
